@@ -3,7 +3,7 @@
 ### Індивідуальне завдання:
 1. Підготувати сховище до розміщення проекту
 2. Написати просту консольну програму (наприклад вивід на екран аргументів командної строки)
-3. Прикріпити посилання на GIT та архівований проект
+3. Прикріпити посилання на `GIT` та архівований проект
 
 **CmdArgs.java**
 ```java
@@ -41,7 +41,8 @@ pro/
 └── README.md
 ```
 
-**Calc.java**
+`Calc.java`
+
 ```java
 package ex01;
 
@@ -114,7 +115,7 @@ public class Calc {
 
 ### Розробив клас, що серіалізується для зберігання параметрів і результатів обчислень:
 
-**GeometryData.java**
+`GeometryData.java`
 
 ```Java
 package ex01;
@@ -184,7 +185,7 @@ public class GeometryData implements Serializable {
 
 ### Використовуючи агрегування, розробив клас для знаходження рішення задачі:
 
-**Calc.java** (агрегування з GeometryData)
+`Calc.java`
 
 ```Java
 package ex01;
@@ -258,7 +259,7 @@ public class Calc {
 
 ### Розробив клас для демонстрації в діалоговому режимі збереження та відновлення стану об'єкта, використовуючи серіалізацію. Показав особливості використання transient полів:
 
-**Main.java**
+`Main.java`
 
 ```Java
 package ex01;
@@ -322,7 +323,7 @@ public class Main {
 
 ### Розробив клас для тестування коректності результатів обчислень та серіалізації/десеріалізації:
 
-**MainTest.java**
+`MainTest.java`
 
 ```Java
 package ex01;
@@ -361,11 +362,11 @@ public class MainTest {
 
 ### Опис роботи:
 
-Цей проект реалізує обчислення площ геометричних фігур (трикутника та прямокутника) за заданою довжиною сторони в двійковій системі, використовуючи класи **Calc** та **GeometryData**. Клас **GeometryData** є серіалізованим та містить **transient** поля для демонстрації особливостей їх використання. Клас **Calc** використовує агрегування **GeometryData** для зберігання та обробки даних. Клас **Main** надає інтерфейс командного рядка для взаємодії з користувачем, включаючи збереження та відновлення стану об'єкта. Клас **MainTest** містить JUnit тести для перевірки коректності обчислень та серіалізації/десеріалізації.
+Цей проект реалізує обчислення площ геометричних фігур (трикутника та прямокутника) за заданою довжиною сторони в двійковій системі, використовуючи класи `Calc` та `GeometryData`. Клас `GeometryData` є серіалізованим та містить `transient` поля для демонстрації особливостей їх використання. Клас `Calc` використовує агрегування `GeometryData` для зберігання та обробки даних. Клас `Main` надає інтерфейс командного рядка для взаємодії з користувачем, включаючи збереження та відновлення стану об'єкта. Клас `MainTest` містить JUnit тести для перевірки коректності обчислень та серіалізації/десеріалізації.
 
 #### Пройдені тести:
 
-![](./images/Task2_Test.PNG)
+![](./Images/Task2_Test.PNG)
 
 
 
@@ -398,7 +399,7 @@ pro/
 
 
 
-**Main.java** Головний клас, забезпечує взаємодію з користувачем через консольне меню.
+`Main.java` Головний клас, забезпечує взаємодію з користувачем через консольне меню.
 
 ```Java
 package ex02;
@@ -480,7 +481,7 @@ public class Main {
 }
 ```
 
-**Viev.java** Product (шаблон проєктування Factory Method), інтерфейс View, оголошує методи відображення.
+`Viev.java` Product (шаблон проєктування Factory Method), інтерфейс `View`, оголошує методи відображення.
 
 ```Java
 package ex02;
@@ -522,7 +523,7 @@ public interface View {
 }
 ```
 
-**Viewable.java** Creator (шаблон проєктування Factory Method), інтерфейс Viewable, оголошує "фабрикуючий" метод.
+`Viewable.java` Creator (шаблон проєктування Factory Method), інтерфейс `Viewable`, оголошує "фабрикуючий" метод.
 
 ```Java
 package ex02;
@@ -542,7 +543,7 @@ public interface Viewable {
 }
 ```
 
-**ViewableResult.java** ConcreteCreator (шаблон проєктування Factory Method), клас ViewableResult, "фабрикує" об'єкти ViewResult.
+`ViewableResult.java` ConcreteCreator (шаблон проєктування Factory Method), клас `ViewableResult`, "фабрикує" об'єкти `ViewResult`.
 
 ```Java
 package ex02;
@@ -566,7 +567,7 @@ public class ViewableResult implements Viewable {
 }
 ```
 
-**ViewResult.java** ConcreteProduct (шаблон проєктування Factory Method), клас ViewResult, реалізація інтерфейсу View для відображення результатів.
+`ViewResult.java` ConcreteProduct (шаблон проєктування Factory Method), клас `ViewResult`, реалізація інтерфейсу `View` для відображення результатів.
 
 ```Java
 package ex02;
@@ -667,7 +668,7 @@ public class ViewResult implements View {
 }
 ```
 
-**MainTest.java** Клас MainTest, містить JUnit тести для перевірки функціональності проєкту.
+`MainTest.java` Клас `MainTest`, містить JUnit тести для перевірки функціональності проєкту.
 
 ```Java
 package ex02;
@@ -729,4 +730,4 @@ public class MainTest {
 
 #### Пройдені тести:
 
-![](./images/Task3_Test.PNG)
+![](./Images/Task3_Test.PNG)
