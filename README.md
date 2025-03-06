@@ -409,19 +409,28 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 /**
- * Главный класс для взаимодействия с пользователем.
+ * Головний клас для взаємодії з користувачем.
  */
 public class Main {
 
     private Calc calc = new Calc();
-    private View view; // Изменено: используем интерфейс View
+    private View view;
 
+    /**
+     * Конструктор класу Main.
+     * Ініціалізує об'єкти Calc та View, використовуючи патерн Factory Method для створення ViewResult.
+     */
     public Main() {
         ViewableResult viewableResult = new ViewableResult();
-        view = viewableResult.getView(); // Получаем View через Factory Method
-        ((ViewResult) view).setResult(calc.getResult()); // Инициализируем ViewResult объектом из Calc
+        view = viewableResult.getView();
+        ((ViewResult) view).setResult(calc.getResult());
     }
 
+    /**
+     * Метод для відображення консольного меню та обробки команд користувача.
+     * Забезпечує взаємодію з користувачем в циклі, поки не буде введена команда "exit".
+     * @throws IOException Виникає при помилках вводу/виводу.
+     */
     protected void menu() throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String input;
@@ -430,13 +439,13 @@ public class Main {
             System.out.println("Enter command (side, view, save, restore, exit):");
             input = reader.readLine();
 
-            if (input.equalsIgnoreCase("exit")) { // **ИСПРАВЛЕНО**: "exit" вместо "вихід"
+            if (input.equalsIgnoreCase("exit")) {
                 break;
             }
 
             String lowerInput = input.toLowerCase();
 
-            if (lowerInput.startsWith("side")) { // **ИСПРАВЛЕНО**:  Обработка команды "side" через startsWith
+            if (lowerInput.startsWith("side")) {
                 try {
                     String sideStr = lowerInput.substring(4).trim();
                     int side = Integer.parseInt(sideStr);
@@ -444,28 +453,28 @@ public class Main {
                     ((ViewResult) view).setResult(calc.getResult());
                     view.viewShow();
                 } catch (NumberFormatException e) {
-                    System.out.println("Invalid side length. Please enter a number after 'side'."); // Более конкретное сообщение об ошибке
+                    System.out.println("Invalid side length. Please enter a number after 'side'.");
                 } catch (StringIndexOutOfBoundsException e) {
-                    System.out.println("Please enter a side length after 'side'."); // Обработка случая, когда введено только "side"
+                    System.out.println("Please enter a side length after 'side'.");
                 }
             } else {
                 switch (lowerInput) {
-                    case "view": // **ИСПРАВЛЕНО**: "view" вместо "перегляд"
+                    case "view":
                         view.viewShow();
                         break;
-                    case "save": // **ИСПРАВЛЕНО**: "save" вместо "зберегти"
+                    case "save":
                         calc.save();
-                        System.out.println("Saved."); // **ИСПРАВЛЕНО**: "Saved." вместо "Збережено."
+                        System.out.println("Saved.");
                         view.viewShow();
                         break;
-                    case "restore": // **ИСПРАВЛЕНО**: "restore" вместо "відновити"
+                    case "restore":
                         try {
                             calc.restore();
-                            System.out.println("Restored."); // **ИСПРАВЛЕНО**: "Restored." вместо "Відновлено."
+                            System.out.println("Restored.");
                             ((ViewResult) view).setResult(calc.getResult());
                             view.viewShow();
                         } catch (Exception e) {
-                            System.out.println("Error restoring: " + e.getMessage()); // **ИСПРАВЛЕНО**: "Error restoring:" вместо "Помилка відновлення:"
+                            System.out.println("Error restoring: " + e.getMessage());
                         }
                         break;
                     default:
@@ -475,6 +484,12 @@ public class Main {
         }
     }
 
+    /**
+     * Головний метод програми.
+     * Створює екземпляр класу Main та запускає консольне меню для взаємодії з користувачем.
+     * @param args Аргументи командної строки (не використовуються).
+     * @throws IOException Виникає при помилках вводу/виводу.
+     */
     public static void main(String[] args) throws IOException {
         new Main().menu();
     }
@@ -593,48 +608,59 @@ public class ViewResult implements View {
     /** Об'єкт GeometryData, що містить результати обчислень. */
     private GeometryData result;
 
-    /** Конструктор за замовчуванням.
-     * Створює новий GeometryData.
+    /**
+     * Конструктор за замовчуванням.
+     * Створює новий об'єкт GeometryData.
      */
     public ViewResult() {
         result = new GeometryData();
     }
 
-    /** Встановлює об'єкт GeometryData для відображення.
+    /**
+     * Встановлює об'єкт GeometryData для відображення.
      * @param result Об'єкт GeometryData з результатами.
      */
     public void setResult(GeometryData result) {
         this.result = result;
     }
 
-    /** Повертає об'єкт GeometryData.
+    /**
+     * Повертає об'єкт GeometryData.
      * @return Об'єкт GeometryData.
      */
     public GeometryData getResult() {
         return result;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewHeader() {
         System.out.println("Результати обчислень площ:");
         System.out.println("---------------------------");
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewBody() {
         System.out.println(result); // Використовуємо toString() з GeometryData
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewFooter() {
         System.out.println("---------------------------");
         System.out.println("Кінець виводу.");
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewShow() {
         viewHeader();
@@ -642,14 +668,18 @@ public class ViewResult implements View {
         viewFooter();
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewInit(int side) {
         result.setSideLength(side);
         result.calculateAreas();
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewSave() throws IOException {
         ObjectOutputStream os = new ObjectOutputStream(new FileOutputStream(FNAME));
@@ -658,7 +688,9 @@ public class ViewResult implements View {
         os.close();
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewRestore() throws Exception {
         ObjectInputStream is = new ObjectInputStream(new FileInputStream(FNAME));

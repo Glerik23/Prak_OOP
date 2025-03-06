@@ -21,48 +21,59 @@ public class ViewResult implements View {
     /** Об'єкт GeometryData, що містить результати обчислень. */
     private GeometryData result;
 
-    /** Конструктор за замовчуванням.
-     * Створює новий GeometryData.
+    /**
+     * Конструктор за замовчуванням.
+     * Створює новий об'єкт GeometryData.
      */
     public ViewResult() {
         result = new GeometryData();
     }
 
-    /** Встановлює об'єкт GeometryData для відображення.
+    /**
+     * Встановлює об'єкт GeometryData для відображення.
      * @param result Об'єкт GeometryData з результатами.
      */
     public void setResult(GeometryData result) {
         this.result = result;
     }
 
-    /** Повертає об'єкт GeometryData.
+    /**
+     * Повертає об'єкт GeometryData.
      * @return Об'єкт GeometryData.
      */
     public GeometryData getResult() {
         return result;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewHeader() {
         System.out.println("Результати обчислень площ:");
         System.out.println("---------------------------");
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewBody() {
         System.out.println(result); // Використовуємо toString() з GeometryData
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewFooter() {
         System.out.println("---------------------------");
         System.out.println("Кінець виводу.");
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewShow() {
         viewHeader();
@@ -70,14 +81,18 @@ public class ViewResult implements View {
         viewFooter();
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewInit(int side) {
         result.setSideLength(side);
         result.calculateAreas();
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewSave() throws IOException {
         ObjectOutputStream os = new ObjectOutputStream(new FileOutputStream(FNAME));
@@ -86,7 +101,9 @@ public class ViewResult implements View {
         os.close();
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void viewRestore() throws Exception {
         ObjectInputStream is = new ObjectInputStream(new FileInputStream(FNAME));
