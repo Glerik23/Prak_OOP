@@ -761,3 +761,540 @@ public class MainTest {
 
 #### Пройдені тести:
 ![](./Images/Task3_Test.png)
+
+
+
+# Завдання 4 - Поліморфізм
+
+Вам потрібно виконати наступне:
+1. За основу використовувати вихідний текст проекту попередньої лабораторної роботи Використовуючи шаблон проектування Factory Method (Virtual Constructor), розширити ієрархію похідними класами, реалізують методи для подання результатів у вигляді текстової таблиці. Параметри відображення таблиці мають визначатися користувачем.
+2. Продемонструвати заміщення (перевизначення, overriding), поєднання (перевантаження overloading), динамічне призначення методів (Пізнє зв'язування, поліморфізм, dynamic method dispatch).
+3. Забезпечити діалоговий інтерфейс із користувачем.
+4. Розробити клас для тестування основної функціональності.
+5. Використати коментарі для автоматичної генерації документації засобами javadoc.
+
+### Структура проекту:
+
+```
+pro/
+├── src/
+│   ├── ex02/
+│   │   ├── Calc.java
+│   │   ├── GeometryData.java
+│   │   ├── Main.java
+│   │   ├── View.java
+│   │   ├── Viewable.java
+│   │   ├── ViewableResult.java
+│   │   └── ViewResult.java
+│   └── ex03/
+│       ├── Main.java
+│       ├── ViewableTable.java
+│       └── ViewTable.java
+└── test/
+    ├── ex02/
+    │   └── MainTest.java
+    └── ex03/
+        └── MainTest.java
+```
+
+
+`ex03/Main.java` Клас Main - розширена версія програми з табличним виводом
+
+```Java
+package ex03;
+
+import ex02.Calc;
+import ex02.View;
+import ex02.ViewResult;
+import ex02.ViewableResult;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
+/**
+ * Головний клас для взаємодії з користувачем, розширений для підтримки табличного виводу.
+ * @author Glerik
+ * @version 1.1
+ * @see Main#main
+ */
+public class Main extends ex02.Main {
+
+    private View view;
+    private Calc calc = new Calc();
+    private boolean useTableView = false; // Прапорець для вибору табличного виводу
+    private int tableWidth = 30; // Ширина таблиці за замовчуванням
+
+    /**
+     * Конструктор класу Main.
+     * Ініціалізує об'єкти Calc та View, використовуючи патерн Factory Method.
+     * За замовчуванням використовує звичайний вивід {@linkplain ViewResult}.
+     */
+    public Main() {
+        ViewableResult viewableResult = new ViewableResult();
+        view = viewableResult.getView();
+        ((ViewResult) view).setResult(calc.getResult());
+    }
+
+    /**
+     * Конструктор для вибору типу View.
+     * @param view Об'єкт View, який буде використовуватись для відображення.
+     */
+    public Main(View view) {
+        this.view = view;
+        if (view instanceof ViewResult) {
+            ((ViewResult) view).setResult(calc.getResult());
+        }
+    }
+
+
+    /**
+     * Метод для відображення консольного меню та обробки команд користувача.
+     * Додано підтримку команд для вибору табличного виводу та встановлення ширини таблиці.
+     * @throws IOException Виникає при помилках вводу/виводу.
+     */
+    @Override
+    protected void menu() throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        String input;
+
+        while (true) {
+            System.out.println("\nВведіть команду (side [ширина] <сторона>, view, save, restore, tableview, setwidth <ширина>, exit):");
+            input = reader.readLine();
+
+            if (input.equalsIgnoreCase("exit")) {
+                break;
+            }
+
+            String lowerInput = input.toLowerCase();
+
+            if (lowerInput.startsWith("side")) {
+                try {
+                    String sideInput = lowerInput.substring(4).trim();
+                    int widthInput = tableWidth; // За замовчуванням використовуємо поточну ширину таблиці
+
+                    String[] parts = sideInput.split("\\s+", 2); // Розділяємо ввід на ширину та сторону
+                    if (parts.length > 1) {
+                        try {
+                            widthInput = Integer.parseInt(parts[0]); // Перше слово може бути шириною
+                            sideInput = parts[1]; // Друге слово - сторона
+                            tableWidth = widthInput; // Оновлюємо поточну ширину таблиці
+                            useTableView = true; // Автоматично переходимо в табличний вивід при заданні ширини
+                        } catch (NumberFormatException e) {
+                            sideInput = parts[0]; // Якщо не вдалося розпарсити ширину, вважаємо перше слово стороною
+                        }
+                    }
+
+
+                    int side = Integer.parseInt(sideInput.trim());
+
+                    calc.init(side);
+
+                    if (useTableView) {
+                        ViewTable tableView = (ViewTable) new ViewableTable().getView();
+                        tableView.setResult(calc.getResult());
+                        tableView.viewShow(widthInput); // Використовуємо задану ширину або ширину за замовчуванням
+                        view = tableView; // Оновлюємо поточний view для 'view', 'save', 'restore' команд, щоб використовувався табличний вивід
+                    } else {
+                        ((ViewResult) view).setResult(calc.getResult());
+                        view.viewShow();
+                    }
+
+
+                } catch (NumberFormatException e) {
+                    System.out.println("Невірна довжина сторони. Будь ласка, введіть число після 'side'.");
+                } catch (StringIndexOutOfBoundsException e) {
+                    System.out.println("Будь ласка, введіть довжину сторони після 'side'.");
+                }
+            } else {
+                switch (lowerInput) {
+                    case "view":
+                        if (useTableView) {
+                            ((ViewTable) view).viewShow(tableWidth); // Відображення таблиці з поточною шириною
+                        } else {
+                            view.viewShow();
+                        }
+                        break;
+                    case "save":
+                        calc.save();
+                        System.out.println("Збережено.");
+                        if (useTableView) {
+                            ((ViewTable) view).viewShow(tableWidth);
+                        } else {
+                            view.viewShow();
+                        }
+                        break;
+                    case "restore":
+                        try {
+                            calc.restore();
+                            System.out.println("Відновлено.");
+                            if (useTableView) {
+                                ((ViewTable) view).setResult(calc.getResult()); // Оновлення результату для табличного виводу
+                                ((ViewTable) view).viewShow(tableWidth);
+                            } else {
+                                ((ViewResult) view).setResult(calc.getResult());
+                                view.viewShow();
+                            }
+                        } catch (Exception e) {
+                            System.out.println("Помилка відновлення: " + e.getMessage());
+                        }
+                        break;
+                    case "tableview":
+                        useTableView = true;
+                        System.out.println("Перехід до табличного виводу.");
+                        break;
+                    case "setwidth":
+                        System.out.println("Введіть ширину таблиці:");
+                        String widthStr = reader.readLine();
+                        try {
+                            tableWidth = Integer.parseInt(widthStr);
+                            System.out.println("Ширина таблиці встановлена на " + tableWidth + ".");
+                            useTableView = true; // Автоматично переходимо в табличний вивід при заданні ширини
+                        } catch (NumberFormatException e) {
+                            System.out.println("Невірна ширина таблиці. Будь ласка, введіть число.");
+                        }
+                        break;
+                    default:
+                        System.out.println("Невідома команда.");
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Головний метод програми.
+     * Створює екземпляр класу Main та запускає консольне меню для взаємодії з користувачем.
+     * Використовує табличний вивід за замовчуванням.
+     * @param args Аргументи командної строки (не використовуються).
+     * @throws IOException Виникає при помилках вводу/виводу.
+     */
+    public static void main(String[] args) throws IOException {
+        Main main = new Main(new ViewableTable().getView()); // Використовуємо табличний вивід за замовчуванням
+        main.menu();
+    }
+}
+```
+
+`ex03/ViewableTable.java` Клас ViewableTable - ConcreteCreator для табличного виводу
+
+```Java
+package ex03;
+import ex02.ViewableResult;
+import ex02.View;
+
+/** ConcreteCreator (шаблон проєктування Factory Method).
+ * Клас, що "фабрикує" об'єкти {@linkplain ViewTable}.
+ * @author Glerik
+ * @version 1.1
+ * @see ViewableResult
+ * @see ViewableTable#getView()
+ */
+public class ViewableTable extends ViewableResult {
+    /** Створює відображуваний об'єкт {@linkplain ViewTable}.
+     * @return Об'єкт ViewTable.
+     */
+    @Override
+    public View getView() {
+        return new ViewTable();
+    }
+}
+```
+
+`ViewTable.java`   Клас ViewTable - ConcreteProduct для табличного виводу
+
+```Java
+package ex03;
+
+import ex02.GeometryData;
+import ex02.ViewResult;
+import java.util.Formatter;
+import java.io.IOException;
+
+/** ConcreteProduct (Шаблон проєктування Factory Method).
+ * Клас для відображення результатів обчислень площ фігур у вигляді таблиці.
+ * Розширює {@linkplain ViewResult}, реалізуючи табличне представлення даних.
+ * @author Glerik
+ * @version 1.1
+ * @see ViewResult
+ */
+public class ViewTable extends ViewResult {
+
+    /** Ширина таблиці за замовчуванням. */
+    private static final int DEFAULT_WIDTH = 30;
+    /** Поточна ширина таблиці. */
+    private int width;
+
+    /**
+     * Конструктор за замовчуванням.
+     * Встановлює ширину таблиці за замовчуванням {@linkplain ViewTable#DEFAULT_WIDTH}.
+     */
+    public ViewTable() {
+        this(DEFAULT_WIDTH);
+    }
+
+    /**
+     * Конструктор з параметром ширини таблиці.
+     * @param width Ширина таблиці, яку потрібно встановити.
+     */
+    public ViewTable(int width) {
+        super(); // Виклик конструктора суперкласу ViewResult
+        this.width = width;
+    }
+
+    /**
+     * Встановлює ширину таблиці.
+     * @param width Нова ширина таблиці.
+     */
+    public void setWidth(int width) {
+        this.width = width;
+    }
+
+    /**
+     * Повертає поточну ширину таблиці.
+     * @return Ширина таблиці.
+     */
+    public int getWidth() {
+        return width;
+    }
+
+    /**
+     * Встановлює ширину таблиці до значення за замовчуванням {@linkplain ViewTable#DEFAULT_WIDTH}.
+     */
+    public void resetWidthToDefault() {
+        this.width = DEFAULT_WIDTH;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void viewHeader() {
+        System.out.println("\nРезультати обчислень площ (Таблиця):");
+        printLine();
+        Formatter fmt = new Formatter();
+        fmt.format("%s%-" + ((width/3) + 2) + "s | %-" + ((width/3) + 2) + "s | %-" + ((width/3) + 2) + "s | %-" + ((width/3) + 2) + "s%n",
+                "", "Довжина сторони (бінарна)", "Площа трикутника", "Площа прямокутника", "Загальна площа");
+        System.out.print(fmt);
+        printLine();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void viewBody() {
+        GeometryData data = getResult();
+        if (data != null) {
+            Formatter fmt = new Formatter();
+            fmt.format("%s%-" + ((width/3) + 2) + "s | %-" + ((width/3) + 2) + ".3f | %-" + ((width/3) + 2) + ".3f | %-" + ((width/3) + 2) + ".3f%n",
+                    "",
+                    Integer.toBinaryString(data.getSideLength()),
+                    data.getTriangleArea(),
+                    data.getRectangleArea(),
+                    data.getTotalArea());
+            System.out.print(fmt);
+        } else {
+            System.out.println("Дані для відображення відсутні.");
+        }
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void viewFooter() {
+        printLine();
+        System.out.println("Кінець таблиці.");
+    }
+
+    /**
+     * Друкує горизонтальну лінію для розділення частин таблиці.
+     */
+    private void printLine() {
+        for (int i = 0; i < width * 2 + 30; i++) {
+            System.out.print("-");
+        }
+        System.out.println();
+    }
+
+    /**
+     * {@inheritDoc}
+     * Розширена для можливості задання ширини таблиці.
+     */
+    @Override
+    public void viewInit(int side) {
+        super.viewInit(side);
+    }
+
+    /**
+     * Перевантаження методу {@linkplain ViewTable#viewInit(int side)} для встановлення ширини таблиці.
+     * @param side Довжина сторони для ініціалізації обчислень.
+     * @param width Ширина таблиці для встановлення.
+     */
+    public void viewInit(int side, int width) {
+        this.width = width;
+        super.viewInit(side);
+    }
+
+    /**
+     * Перевантаження методу {@linkplain ViewTable#viewShow()} для використання заданої ширини таблиці.
+     * Відображає таблицю з поточною шириною.
+     */
+    public void viewShow(int width) {
+        this.width = width;
+        viewShow();
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void viewSave() throws IOException {
+        super.viewSave();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void viewRestore() throws Exception {
+        super.viewRestore();
+    }
+}
+```
+
+`ex03/MainTest.java`
+
+```Java
+package ex03;
+
+import ex02.Calc;
+import ex02.GeometryData;
+import ex02.ViewableResult;
+import ex02.ViewResult;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+/**
+ * Клас для тестування функціональності Calc, GeometryData та ViewTable в пакеті ex03.
+ * Розширено для перевірки табличного виводу та його особливостей.
+ * @author Glerik
+ * @version 1.1
+ */
+public class MainTest {
+
+    /**
+     * Тестує обчислення площ та табличне відображення результатів.
+     * Перевіряє коректність обчислень та базове відображення таблиці.
+     */
+    @Test
+    public void testAreaCalculationAndViewTable() {
+        Calc calc = new Calc();
+        calc.init(5);
+
+        ViewableTable viewableTable = new ViewableTable();
+        ViewTable viewTable = (ViewTable) viewableTable.getView();
+        viewTable.setResult(calc.getResult());
+
+        GeometryData result = viewTable.getResult();
+
+        assertEquals(10.825, result.getTriangleArea(), 0.001);
+        assertEquals(25.0, result.getRectangleArea(), 0.001);
+
+        
+        viewTable.viewShow(40);
+        assertEquals(40, viewTable.getWidth());
+        viewTable.resetWidthToDefault();
+        viewTable.viewShow();
+        assertEquals(30, viewTable.getWidth());
+    }
+
+    /**
+     * Тестує серіалізацію та відновлення даних, використовуючи табличний вивід.
+     * Перевіряє, що дані коректно зберігаються та відновлюються при використанні ViewTable.
+     */
+    @Test
+    public void testSerializationAndViewTableRestore() {
+        Calc calc1 = new Calc();
+        calc1.init(5);
+
+        try {
+             calc1.save();
+
+            Calc calc2 = new Calc();
+            calc2.restore();
+
+            GeometryData result1 = calc1.getResult();
+            GeometryData result2 = calc2.getResult();
+
+            assertEquals(result1, result2); // Перевірка, що об'єкти GeometryData однакові після відновлення
+
+            ViewableTable viewableTable = new ViewableTable();
+            ViewTable viewTable = (ViewTable) viewableTable.getView();
+            viewTable.setResult(calc2.getResult());
+            viewTable.viewShow(); // Виводимо відновлений результат через ViewTable для візуальної перевірки
+
+        } catch (Exception e) {
+            fail("Помилка серіалізації/десеріалізації: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Тестує основну функціональність звичайного виводу (без таблиці).
+     * Перевіряє, що звичайний вивід ViewResult працює коректно.
+     */
+    @Test
+    public void testAreaCalculationAndPlainView() {
+        Calc calc = new Calc();
+        calc.init(5);
+
+        ViewableResult viewableResult = new ViewableResult();
+        ViewResult viewResult = (ViewResult) viewableResult.getView();
+        viewResult.setResult(calc.getResult());
+
+        GeometryData result = viewResult.getResult();
+
+        assertEquals(10.825, result.getTriangleArea(), 0.001);
+        assertEquals(25.0, result.getRectangleArea(), 0.001);
+
+        // Перевірка виводу viewResult.viewShow() тут може бути складною без перехоплення System.out.
+        // Залишаємо базову перевірку обчислень.
+    }
+
+    /**
+     * Тестує серіалізацію та відновлення даних для звичайного виводу.
+     * Перевіряє, що серіалізація/десеріалізація працює коректно зі звичайним ViewResult.
+     */
+    @Test
+    public void testSerializationAndPlainViewRestore() {
+        Calc calc1 = new Calc();
+        calc1.init(5);
+
+        try {
+            calc1.save();
+
+            Calc calc2 = new Calc();
+            calc2.restore();
+
+            GeometryData result1 = calc1.getResult();
+            GeometryData result2 = calc2.getResult();
+
+            assertEquals(result1, result2); // Перевірка, що об'єкти GeometryData однакові після відновлення
+
+            ViewableResult viewableResult = new ViewableResult();
+            ViewResult viewResult = (ViewResult) viewableResult.getView();
+            viewResult.setResult(calc2.getResult());
+            viewResult.viewShow(); // Виводимо відновлений результат через ViewResult для візуальної перевірки
+
+        } catch (Exception e) {
+            fail("Помилка серіалізації/десеріалізації: " + e.getMessage());
+        }
+    }
+}
+```
+
+#### Пройдені тести:
+![](./Images/Task4_Test.png)
