@@ -1298,3 +1298,833 @@ public class MainTest {
 
 #### Пройдені тести:
 ![](./Images/Task4_Test.png)
+
+
+# Завдання 5 - Обробка колекцій
+
+Вам потрібно виконати наступне:
+1. Реалізувати можливість скасування (undo) операцій (команд).
+2. Продемонструвати поняття "макрокоманда"
+3. При розробці програми використовувати шаблон Singletone.
+4. Забезпечити діалоговий інтерфейс із користувачем.
+5. Розробити клас для тестування функціональності програми.
+
+
+`Application.java` Клас Singleton для керування застосунком та доступом до Calc
+
+```Java
+package ex04;
+
+import ex02.Calc;
+
+/**
+ * Клас Application, реалізований як Singleton, керує основними аспектами програми.
+ * Забезпечує єдину точку доступу до об'єкту Calc та інших глобальних ресурсів.
+ */
+public class Application {
+    private static Application instance;
+    private Calc calc;
+
+    /**
+     * Приватний конструктор для забезпечення Singleton.
+     * Ініціалізує об'єкт Calc.
+     */
+    private Application() {
+        calc = new Calc();
+    }
+
+    /**
+     * Метод для отримання єдиного екземпляра Application (Singleton pattern).
+     * Якщо екземпляр не існує, створює новий.
+     * @return Єдиний екземпляр класу Application.
+     */
+    public static Application getInstance() {
+        if (instance == null) {
+            instance = new Application();
+        }
+        return instance;
+    }
+
+    /**
+     * Повертає об'єкт Calc, що використовується в Application.
+     * @return Об'єкт Calc для виконання обчислень.
+     */
+    public Calc getCalc() {
+        return calc;
+    }
+}
+```
+
+`ChangeConsoleCommand.java` Консольна команда для зміни довжини сторони (розширена версія для консольного меню).
+
+```Java
+package ex04;
+
+import ex02.Calc;
+import ex03.ViewTable;
+
+/**
+ * Консольна команда для зміни довжини сторони.
+ */
+public class ChangeConsoleCommand implements ConsoleCommand {
+    private Calc calc;
+    private ViewTable view;
+    private ChangeItemCommand lastChangeItemCommand; // **Зберігаємо ChangeItemCommand**
+
+    /**
+     * Конструктор ChangeConsoleCommand.
+     * @param calc Об'єкт Calc для виконання операцій.
+     * @param view Об'єкт ViewTable для відображення результатів у таблиці.
+     */
+    public ChangeConsoleCommand(Calc calc, ViewTable view) {
+        this.calc = calc;
+        this.view = view;
+    }
+
+    /**
+     * Повертає ключ команди для меню.
+     */
+    @Override
+    public String getKey() {
+        return "side";
+    }
+
+    /**
+     * Повертає інформацію про команду для відображення в меню.
+     */
+    @Override
+    public String getInfo() {
+        return "Встановити довжину сторони (side <довжина>)";
+    }
+
+    /**
+     * Виконує команду зміни довжини сторони, запитуючи довжину у користувача (без аргументів в команді).
+     */
+    @Override
+    public void execute() throws Exception {
+        System.out.println("Введіть нову довжину сторони:");
+        String sideStr = System.console().readLine();
+        execute(sideStr);
+    }
+
+    /**
+     * Перевантажений метод execute для обробки команди з аргументом (довжиною сторони).
+     * Виконує команду зміни довжини сторони, використовуючи наданий аргумент.
+     * @param sideArg Рядок, що представляє нову довжину сторони.
+     * @throws Exception Виникає у разі помилок при виконанні команди.
+     */
+    public void execute(String sideArg) throws Exception {
+        if (sideArg != null && !sideArg.trim().isEmpty()) {
+            try {
+                int side = Integer.parseInt(sideArg.trim());
+                ChangeItemCommand changeItemCommand = new ChangeItemCommand(calc, side);
+                lastChangeItemCommand = changeItemCommand;
+                changeItemCommand.execute();
+                view.setResult(calc.getResult());
+                view.viewShow();
+            } catch (NumberFormatException e) {
+                System.out.println("Невірна довжина сторони: '" + sideArg + "'. Будь ласка, введіть ціле число.");
+            }
+        } else {
+            System.out.println("Будь ласка, введіть довжину сторони після команди 'side'.");
+        }
+    }
+
+
+    /**
+     * Метод undo для ConsoleCommand, який викликає undo у збереженого ChangeItemCommand.
+     */
+    @Override
+    public void undo() throws Exception {
+        if (lastChangeItemCommand != null) { 
+            lastChangeItemCommand.undo();
+        }
+    }
+}
+```
+
+`ChangeItemCommand.java` Команда для зміни довжини сторони.
+
+```Java
+package ex04;
+
+import ex02.Calc;
+
+/**
+ * Команда для зміни довжини сторони в об'єкті Calc.
+ * Реалізує інтерфейс Command та забезпечує можливість скасування операції зміни сторони.
+ */
+public class ChangeItemCommand implements Command {
+    private Calc calc;
+    private int oldSide;
+    private int newSide;
+
+    /**
+     * Конструктор ChangeItemCommand.
+     * @param calc Об'єкт Calc, для якого виконується зміна.
+     * @param newSide Нова довжина сторони, яку потрібно встановити.
+     */
+    public ChangeItemCommand(Calc calc, int newSide) {
+        this.calc = calc;
+        this.newSide = newSide;
+        this.oldSide = calc.getResult().getSideLength();
+    }
+
+    /**
+     * Виконує команду зміни довжини сторони.
+     * Ініціалізує обчислення в Calc з новою довжиною сторони.
+     * @throws Exception Виникає у разі помилок при виконанні команди.
+     */
+    @Override
+    public void execute() throws Exception {
+        calc.init(newSide);
+    }
+
+    /**
+     * Скасовує команду зміни довжини сторони.
+     * Відновлює попередню довжину сторони, яка була до виконання команди.
+     * @throws Exception Виникає у разі помилок при скасуванні команди.
+     */
+    @Override
+    public void undo() throws Exception {
+        calc.init(oldSide);
+    }
+}
+```
+
+`Command.java` Інтерфейс для команд.
+
+```Java
+package ex04;
+
+/**
+ * Інтерфейс Command для реалізації шаблону Command.
+ * Оголошує методи для виконання та скасування операцій.
+ */
+public interface Command {
+    /**
+     * Метод для виконання команди.
+     * @throws Exception Виникає у разі помилок при виконанні команди.
+     */
+    void execute() throws Exception;
+
+    /**
+     * Метод для скасування команди.
+     * @throws Exception Виникає у разі помилок при скасуванні команди.
+     */
+    void undo() throws Exception;
+}
+```
+
+`ConsoleCommand.java` Інтерфейс для консольних команд
+
+```Java
+package ex04;
+
+/**
+ * Інтерфейс ConsoleCommand розширює інтерфейс Command для консольних команд.
+ * Додає методи для отримання ключа команди та інформації про команду для меню.
+ */
+public interface ConsoleCommand extends Command {
+    /**
+     * Повертає ключ команди, який використовується для ідентифікації команди в меню.
+     * @return Ключ команди (наприклад, "side", "view").
+     */
+    String getKey();
+
+    /**
+     * Повертає інформацію про команду для відображення в меню користувачу.
+     * @return Опис команди для меню.
+     */
+    String getInfo();
+}
+```
+
+`GenerateConsoleCommand.java`  Консольна команда для генерації випадкової довжини сторони.
+
+```Java
+package ex04;
+
+import ex02.Calc;
+import ex02.ViewResult;
+import java.util.Random;
+
+/**
+ * Консольна команда для генерації випадкової довжини сторони.
+ * Реалізує ConsoleCommand та генерує випадкову сторону для обчислень.
+ * Підтримує скасування операції генерації.
+ */
+public class GenerateConsoleCommand implements ConsoleCommand {
+    private Calc calc;
+    private ViewResult view;
+    private int oldSide;
+    private int newSide;
+
+    /**
+     * Конструктор GenerateConsoleCommand.
+     * @param calc Об'єкт Calc для виконання операцій.
+     * @param view Об'єкт ViewResult для відображення результатів.
+     */
+    public GenerateConsoleCommand(Calc calc, ViewResult view) {
+        this.calc = calc;
+        this.view = view;
+    }
+
+    /**
+     * Повертає ключ команди для меню.
+     * @return Ключ команди "generate".
+     */
+    @Override
+    public String getKey() {
+        return "generate";
+    }
+
+    /**
+     * Повертає інформацію про команду для відображення в меню.
+     * @return Опис команди "Згенерувати випадкову довжину сторони".
+     */
+    @Override
+    public String getInfo() {
+        return "Згенерувати випадкову довжину сторони";
+    }
+
+    /**
+     * Виконує команду генерації випадкової довжини сторони.
+     * Генерує випадкову сторону, ініціалізує обчислення в Calc та відображає результати.
+     * @throws Exception Виникає у разі помилок при виконанні команди.
+     */
+    @Override
+    public void execute() throws Exception {
+        Random random = new Random();
+        newSide = random.nextInt(100) + 1; 
+        oldSide = calc.getResult().getSideLength();
+        calc.init(newSide);
+        view.setResult(calc.getResult());
+        view.viewShow();
+    }
+
+    /**
+     * Скасовує команду генерації випадкової довжини сторони.
+     * Відновлює попередню довжину сторони, що була до генерації.
+     * @throws Exception Виникає у разі помилок при скасуванні команди.
+     */
+    @Override
+    public void undo() throws Exception {
+        calc.init(oldSide);
+        view.setResult(calc.getResult());
+        view.viewShow();
+    }
+}
+```
+
+`MacroCommand.java` 
+
+```Java
+package ex04;
+
+import java.util.List;
+import java.util.ArrayList;
+
+/**
+ * Клас MacroCommand реалізує макрокоманду, що складається з декількох підкоманд.
+ * Дозволяє виконувати послідовність команд як одну операцію та підтримує скасування для всіх підкоманд.
+ */
+public class MacroCommand implements ConsoleCommand {
+    private List<ConsoleCommand> commands = new ArrayList<>();
+    private String key;
+    private String info;
+
+    /**
+     * Конструктор MacroCommand.
+     * @param key Ключ макрокоманди для меню.
+     * @param info Інформація про макрокоманду для відображення в меню.
+     */
+    public MacroCommand(String key, String info) {
+        this.key = key;
+        this.info = info;
+    }
+
+    /**
+     * Додає підкоманду до макрокоманди.
+     * @param cmd ConsoleCommand, яку потрібно додати до макрокоманди.
+     */
+    public void add(ConsoleCommand cmd) {
+        commands.add(cmd);
+    }
+
+    /**
+     * Повертає ключ макрокоманди для меню.
+     * @return Ключ макрокоманди.
+     */
+    @Override
+    public String getKey() {
+        return key;
+    }
+
+    /**
+     * Повертає інформацію про макрокоманду для відображення в меню.
+     * @return Опис макрокоманди.
+     */
+    @Override
+    public String getInfo() {
+        return info;
+    }
+
+    /**
+     * Виконує всі підкоманди, що входять до складу макрокоманди, послідовно.
+     * @throws Exception Виникає у разі помилок при виконанні будь-якої з підкоманд.
+     */
+    @Override
+    public void execute() throws Exception {
+        for (Command cmd : commands) {
+            cmd.execute();
+        }
+    }
+
+    /**
+     * Скасовує виконання макрокоманди, скасовуючи підкоманди у зворотному порядку.
+     * @throws Exception Виникає у разі помилок при скасуванні будь-якої з підкоманд.
+     */
+    @Override
+    public void undo() throws Exception {
+        for (int i = commands.size() - 1; i >= 0; i--) {
+            commands.get(i).undo();
+        }
+    }
+
+    public List<ConsoleCommand> getCommands() {
+        return commands;
+    }
+}
+```
+
+`Main.java`
+
+```Java
+package ex04;
+
+import ex02.Calc;
+import ex02.View;
+import ex02.ViewResult;
+import ex03.ViewTable;
+import ex03.ViewableTable;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
+/**
+ * Головний клас для взаємодії з користувачем, розширений для підтримки табличного виводу та командної структури.
+ * @author Glerik
+ * @version 1.3
+ * @see Main#main
+ */
+public class Main extends ex02.Main {
+
+    private View view;
+    private Calc calc;
+    private Menu menu;
+
+    /**
+     * Конструктор класу Main.
+     * Ініціалізує об'єкти Calc та View, використовуючи патерн Factory Method.
+     * За замовчуванням використовує табличний вивід {@linkplain ViewTable}.
+     */
+    public Main() {
+        Application app = Application.getInstance();
+        this.calc = app.getCalc();
+        ViewableTable viewableResult = new ViewableTable();
+        view = viewableResult.getView();
+        ((ViewTable) view).setResult(calc.getResult());
+
+        this.menu = new Menu();
+        menu.addCommand(new ChangeConsoleCommand(calc, (ViewTable)view));
+        menu.addCommand(new GenerateConsoleCommand(calc, (ViewResult)view));
+        menu.addCommand(new SaveConsoleCommand(calc, (ViewResult)view));
+        menu.addCommand(new RestoreConsoleCommand(calc, (ViewResult)view));
+        menu.addCommand(new ViewConsoleCommand((ViewResult)view));
+    }
+
+    /**
+     * Конструктор для вибору типу View.
+     * @param view Об'єкт View, який буде використовуватись для відображення.
+     */
+    public Main(View view) {
+        Application app = Application.getInstance();
+        this.calc = app.getCalc();
+        this.view = view;
+        if (view instanceof ViewTable) {
+            ((ViewTable) view).setResult(calc.getResult());
+        } else if (view instanceof ViewResult) {
+            ((ViewResult) view).setResult(calc.getResult());
+        }
+        
+        this.menu = new Menu();
+        menu.addCommand(new ChangeConsoleCommand(calc, (ViewTable)view)); 
+        menu.addCommand(new GenerateConsoleCommand(calc, (ViewResult)view));
+        menu.addCommand(new SaveConsoleCommand(calc, (ViewResult)view));
+        menu.addCommand(new RestoreConsoleCommand(calc, (ViewResult)view));
+        menu.addCommand(new ViewConsoleCommand((ViewResult)view));
+    }
+
+
+    /**
+     * Метод для відображення консольного меню та обробки команд користувача.
+     * Використовує структуру команд з ex04 та табличний вивід з ex03.
+     * @throws IOException Виникає при помилках вводу/виводу.
+     */
+    @Override
+    protected void menu() throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        String input;
+
+
+        while (true) {
+            menu.showMenu();
+            input = reader.readLine();
+
+            if (input.equalsIgnoreCase("exit")) {
+                break;
+            } else if (input.equalsIgnoreCase("undo")) {
+                try {
+                    menu.undoLastCommand();
+                } catch (Exception e) {
+                    System.out.println("Помилка при скасуванні: " + e.getMessage());
+                }
+            } else {
+                try {
+                    menu.executeCommand(input);
+                } catch (Exception e) {
+                    System.out.println("Помилка виконання команди: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Головний метод програми.
+     * Створює екземпляр класу Main та запускає консольне меню для взаємодії з користувачем.
+     * Використовує табличний вивід за замовчуванням.
+     * @param args Аргументи командної строки (не використовуються).
+     * @throws IOException Виникає при помилках вводу/виводу.
+     */
+    public static void main(String[] args) throws IOException {
+        Main main = new Main();
+        main.menu();
+    }
+}
+```
+
+`Menu.java` Клас, що реалізує консольне меню.
+
+```Java
+package ex04;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Stack;
+
+/**
+ * Клас Menu - контейнер для консольних команд.
+ * Відповідає за управління командами, їх реєстрацію, виконання та скасування.
+ */
+public class Menu {
+    private Map<String, ConsoleCommand> commands = new HashMap<>();
+    private Stack<Command> history = new Stack<>();
+
+    /**
+     * Додає команду до меню.
+     * @param command ConsoleCommand, яку потрібно додати до меню.
+     */
+    public void addCommand(ConsoleCommand command) {
+        commands.put(command.getKey(), command);
+    }
+
+    /**
+     * Видаляє команду з меню за її ключем.
+     * @param key Ключ команди, яку потрібно видалити.
+     */
+    public void removeCommand(String key) {
+        commands.remove(key);
+    }
+
+    /**
+     * Виконує команду за заданим ключем.
+     * Додає виконану команду до історії для можливості скасування.
+     * @param inputLine Рядок вводу користувача, що містить команду та можливі аргументи.
+     * @throws Exception Виникає у разі помилок при виконанні команди.
+     */
+    public void executeCommand(String inputLine) throws Exception {
+        String[] parts = inputLine.split(" ", 2);
+        String commandKey = parts[0];
+        String commandArgument = (parts.length > 1) ? parts[1] : null;
+
+        ConsoleCommand command = commands.get(commandKey);
+        if (command != null) {
+
+            if (command instanceof ChangeConsoleCommand) {
+                ((ChangeConsoleCommand) command).execute(commandArgument);
+            } else {
+                command.execute();
+            }
+            history.push(command);
+        } else {
+            System.out.println("Невідома команда.");
+        }
+    }
+
+    /**
+     * Скасовує останню виконану команду.
+     * Використовує історію команд для виклику методу undo останньої команди.
+     * @throws Exception Виникає у разі помилок при скасуванні команди.
+     */
+    public void undoLastCommand() throws Exception {
+        if (!history.isEmpty()) {
+            Command lastCommand = history.pop();
+            lastCommand.undo();
+            System.out.println("Останню команду скасовано.");
+        } else {
+            System.out.println("Немає команд для скасування.");
+        }
+    }
+
+    /**
+     * Виводить меню команд у консоль.
+     * Показує доступні команди та їх описи.
+     */
+    public void showMenu() {
+        System.out.println("\n=== Меню ===");
+        for (ConsoleCommand command : commands.values()) {
+            System.out.println(command.getKey() + " - " + command.getInfo());
+        }
+        System.out.println("undo - Скасувати останню операцію");
+        System.out.println("exit - Вихід");
+        System.out.println("Введіть команду:");
+    }
+
+    /**
+     * Повертає мапу всіх зареєстрованих команд.
+     * @return Map, де ключ - ключ команди, значення - об'єкт ConsoleCommand.
+     */
+    public Map<String, ConsoleCommand> getCommands() {
+        return commands;
+    }
+}
+```
+
+`RestoreConsoleCommand.java` Консольна команда для відновлення збережених результатів.
+
+```Java
+package ex04;
+
+import ex02.Calc;
+import ex02.ViewResult;
+import ex02.GeometryData;
+
+/**
+ * Консольна команда для відновлення збережених результатів.
+ * Реалізує ConsoleCommand та дозволяє користувачу відновлювати дані з файлу.
+ * Підтримує скасування операції відновлення.
+ */
+public class RestoreConsoleCommand implements ConsoleCommand {
+    private Calc calc;
+    private ViewResult view;
+    private GeometryData previousData;
+
+    /**
+     * Конструктор RestoreConsoleCommand.
+     * @param calc Об'єкт Calc для виконання операцій.
+     * @param view Об'єкт ViewResult для відображення результатів.
+     */
+    public RestoreConsoleCommand(Calc calc, ViewResult view) {
+        this.calc = calc;
+        this.view = view;
+    }
+
+    /**
+     * Повертає ключ команди для меню.
+     * @return Ключ команди "restore".
+     */
+    @Override
+    public String getKey() {
+        return "restore";
+    }
+
+    /**
+     * Повертає інформацію про команду для відображення в меню.
+     * @return Опис команди "Відновити збережені результати (restore)".
+     */
+    @Override
+    public String getInfo() {
+        return "Відновити збережені результати (restore)";
+    }
+
+    /**
+     * Виконує команду відновлення збережених результатів.
+     * Зберігає поточні дані, відновлює дані з файлу в Calc та відображає результати.
+     * @throws Exception Виникає у разі помилок при виконанні команди.
+     */
+    @Override
+    public void execute() throws Exception {
+        previousData = calc.getResult();
+        calc.restore();
+        System.out.println("Відновлено.");
+        view.setResult(calc.getResult());
+        view.viewShow();
+    }
+
+    /**
+     * Скасовує команду відновлення збережених результатів.
+     * Відновлює дані Calc до стану, який був до виконання команди відновлення.
+     * @throws Exception Виникає у разі помилок при скасуванні команди.
+     */
+    @Override
+    public void undo() throws Exception {
+
+        if (previousData != null) {
+            calc.setResult(previousData);
+            view.setResult(calc.getResult());
+            view.viewShow();
+            System.out.println("Відновлення скасовано до попереднього стану.");
+        } else {
+            System.out.println("Неможливо скасувати відновлення, попередній стан невідомий.");
+        }
+    }
+}
+```
+
+`SaveConsoleCommand.java` Консольна команда для збереження поточних результатів.
+
+```Java
+package ex04;
+
+import ex02.Calc;
+import ex02.ViewResult;
+
+/**
+ * Консольна команда для збереження поточних результатів обчислень.
+ * Реалізує ConsoleCommand та дозволяє користувачу зберігати дані у файл.
+ * Скасування для цієї команди не передбачено.
+ */
+public class SaveConsoleCommand implements ConsoleCommand {
+    private Calc calc;
+    private ViewResult view;
+
+    /**
+     * Конструктор SaveConsoleCommand.
+     * @param calc Об'єкт Calc для виконання операцій.
+     * @param view Об'єкт ViewResult для відображення результатів.
+     */
+    public SaveConsoleCommand(Calc calc, ViewResult view) {
+        this.calc = calc;
+        this.view = view;
+    }
+
+    /**
+     * Повертає ключ команди для меню.
+     * @return Ключ команди "save".
+     */
+    @Override
+    public String getKey() {
+        return "save";
+    }
+
+    /**
+     * Повертає інформацію про команду для відображення в меню.
+     * @return Опис команди "Зберегти поточні результати (save)".
+     */
+    @Override
+    public String getInfo() {
+        return "Зберегти поточні результати (save)";
+    }
+
+    /**
+     * Виконує команду збереження результатів.
+     * Зберігає поточні результати обчислень Calc у файл та відображає їх.
+     * @throws Exception Виникає у разі помилок при виконанні команди.
+     */
+    @Override
+    public void execute() throws Exception {
+        calc.save();
+        System.out.println("Збережено.");
+        view.viewShow();
+    }
+
+    /**
+     * Скасування операції збереження не передбачено.
+     * Виводить повідомлення про відсутність скасування для даної команди.
+     * @throws Exception Виникає у разі помилок при скасуванні команди.
+     */
+    @Override
+    public void undo() throws Exception {
+        System.out.println("Скасування збереження не передбачено.");
+    }
+}
+```
+
+`ViewConsoleCommand.java` Консольна команда для виведення поточних результатів.
+
+```Java
+package ex04;
+
+import ex02.ViewResult;
+
+/**
+ * Консольна команда для відображення поточних результатів.
+ * Реалізує ConsoleCommand та дозволяє користувачу переглядати поточні обчислення.
+ * Скасування для цієї команди не передбачено, оскільки вона не змінює стан програми.
+ */
+public class ViewConsoleCommand implements ConsoleCommand {
+    private ViewResult view;
+
+    /**
+     * Конструктор ViewConsoleCommand.
+     * @param view Об'єкт ViewResult для відображення результатів.
+     */
+    public ViewConsoleCommand(ViewResult view) {
+        this.view = view;
+    }
+
+    /**
+     * Повертає ключ команди для меню.
+     * @return Ключ команди "view".
+     */
+    @Override
+    public String getKey() {
+        return "view";
+    }
+
+    /**
+     * Повертає інформацію про команду для відображення в меню.
+     * @return Опис команди "Показати поточні результати (view)".
+     */
+    @Override
+    public String getInfo() {
+        return "Показати поточні результати (view)";
+    }
+
+    /**
+     * Виконує команду відображення результатів.
+     * Показує поточні результати обчислень, використовуючи ViewResult.
+     * @throws Exception Виникає у разі помилок при виконанні команди.
+     */
+    @Override
+    public void execute() throws Exception {
+        view.viewShow();
+    }
+
+    /**
+     * Скасування для команди перегляду не передбачено.
+     * Виводить повідомлення про відсутність скасування для даної команди.
+     * @throws Exception Виникає у разі помилок при скасуванні команди.
+     */
+    @Override
+    public void undo() throws Exception {
+        System.out.println("Скасування для перегляду не передбачено.");
+    }
+}
+```
+
+#### Пройдені тести:
+![](./Images/Task5_Test.png)
