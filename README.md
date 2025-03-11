@@ -2128,3 +2128,711 @@ public class ViewConsoleCommand implements ConsoleCommand {
 
 #### Пройдені тести:
 ![](./Images/Task5_Test.png)
+
+
+# Завдання 6 - Паралельне виконання
+
+Вам потрібно виконати наступне:
+1. Продемонструвати можливість паралельної обробки елементів колекції (пошук мінімуму, максимуму, обчислення середнього значення, відбір за критерієм, статистична обробка тощо).
+2. Управління чергою завдань (команд) реалізувати за допомогою шаблону Worker Thread.
+
+
+`AbstractCollectionCommand.java`
+
+```Java
+package ex05;
+
+import java.util.Collection;
+
+/**
+ * Абстрактний клас AbstractCollectionCommand для команд, що обробляють колекції чисел.
+ * Реалізує загальну логіку для всіх команд обробки колекцій.
+ * @param <T> Тип елементів у колекції, що розширює Number.
+ */
+public abstract class AbstractCollectionCommand<T extends Number> implements Command {
+    protected Collection<T> collection;
+    protected double result;
+
+    /**
+     * Конструктор AbstractCollectionCommand.
+     * @param collection Колекція чисел для обробки.
+     */
+    public AbstractCollectionCommand(Collection<T> collection) {
+        this.collection = collection;
+        this.result = 0;
+    }
+
+    /**
+     * Отримати результат виконання команди.
+     * @return Результат обробки колекції.
+     */
+    public double getResult() {
+        return result;
+    }
+
+    /**
+     * Абстрактний метод для виконання специфічної логіки обробки колекції.
+     * Реалізується у підкласах для конкретних операцій (Max, Avg, MinMax).
+     * @throws InterruptedException якщо виконання команди перервано.
+     */
+    @Override
+    public abstract void execute() throws InterruptedException;
+}
+```
+
+`AvgCommand.java`
+
+```Java
+package ex05;
+
+import java.util.Collection;
+import java.util.concurrent.CountDownLatch;
+
+/**
+ * Клас AvgCommand для обчислення середнього значення в колекції чисел.
+ */
+public class AvgCommand<T extends Number>  extends AbstractCollectionCommand<T> {
+
+    private CountDownLatch latch;
+
+    /**
+     * Конструктор AvgCommand.
+     * @param collection Колекція чисел для обробки.
+     */
+    public AvgCommand(Collection<T> collection, CountDownLatch latch) {
+        super(collection);
+        this.latch = latch;
+    }
+
+    /**
+     * Обчислює середнє значення в колекції.
+     * @throws InterruptedException якщо виконання команди перервано.
+     */
+    @Override
+    public void execute() throws InterruptedException {
+        if (collection == null || collection.isEmpty()) {
+            result = Double.NaN;
+            latch.countDown();
+            return;
+        }
+
+        double sum = 0;
+        for (Number number : collection) {
+            sum += number.doubleValue();
+            Thread.sleep(50);
+        }
+        result = sum / collection.size();
+        System.out.println("AvgCommand: Середнє значення обчислено = " + result +
+                " в потоці " + Thread.currentThread().getName());
+        latch.countDown();
+    }
+}
+```
+
+`Command.java`
+
+```Java
+package ex05;
+
+/**
+ * Інтерфейс Command для представлення завдань, що виконуються в черзі.
+ */
+public interface Command {
+    /**
+     * Виконує команду.
+     * @throws InterruptedException якщо виконання команди перервано.
+     */
+    void execute() throws InterruptedException;
+}
+```
+
+`CommandQueue.java`
+
+```Java
+package ex05;
+
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+
+/**
+ * Клас CommandQueue реалізує чергу команд та керує Worker Thread.
+ */
+public class CommandQueue implements Queue {
+    private BlockingQueue<Command> queue = new LinkedBlockingQueue<>();
+    private Thread workerThread;
+    private volatile boolean isRunning = true;
+
+    /**
+     * Внутрішній клас Worker, що виконує команди з черги в окремому потоці.
+     */
+    private class Worker extends Thread {
+        @Override
+        public void run() {
+            while (isRunning || !queue.isEmpty()) {
+                try {
+                    Command command = take();
+                    System.out.println("Worker Thread: Виконую команду " + command.getClass().getSimpleName() +
+                            " в потоці " + Thread.currentThread().getName());
+                    command.execute();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            System.out.println("Worker Thread: Завершення роботи " + Thread.currentThread().getName());
+        }
+    }
+
+
+    /**
+     * Конструктор CommandQueue.
+     * Запускає Worker Thread при створенні черги.
+     */
+    public CommandQueue() {
+        Worker worker = new Worker();
+        workerThread = worker;
+        workerThread.start();
+    }
+
+    /**
+     * Додає команду до черги.
+     * @param command Команда для додавання.
+     */
+    @Override
+    public void put(Command command) {
+        try {
+            queue.put(command);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * Отримує та видаляє команду з черги.
+     * @return Видалена команда.
+     * @throws InterruptedException якщо очікування команди перервано.
+     */
+    @Override
+    public Command take() throws InterruptedException {
+        return queue.take();
+    }
+
+    /**
+     * Зупиняє Worker Thread.
+     * Встановлює флаг isRunning в false і перериває потік обробника.
+     */
+    public void stopQueue() {
+        isRunning = false;
+        workerThread.interrupt();
+    }
+
+    /**
+     * Очікує завершення роботи Worker Thread.
+     * @throws InterruptedException якщо очікування перервано.
+     */
+    public void join() throws InterruptedException {
+        workerThread.join();
+    }
+}
+```
+
+`ConsoleCommand.java`
+
+```Java
+package ex05;
+
+/**
+ * Інтерфейс ConsoleCommand розширює інтерфейс Command для консольних команд.
+ * Додає методи для отримання ключа команди та інформації про команду для меню.
+ */
+public interface ConsoleCommand extends Command {
+    /**
+     * Повертає ключ команди, який використовується для ідентифікації команди в меню.
+     * @return Ключ команди (наприклад, "execute").
+     */
+    String getKey();
+
+    /**
+     * Повертає інформацію про команду для відображення в меню користувачу.
+     * @return Опис команди для меню.
+     */
+    String getInfo();
+
+    /**
+     * Скасування команди.
+     * @throws Exception Виникає у разі помилок при скасуванні команди.
+     */
+    void undo() throws Exception;
+}
+```
+
+`ExecuteConsoleCommand.java`
+
+```Java
+package ex05;
+
+import java.util.List;
+import java.util.Random;
+import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch; // Імпортуємо CountDownLatch
+
+/**
+ * Клас ExecuteConsoleCommand реалізує консольну команду для виконання обробки колекції в паралельних потоках.
+ */
+public class ExecuteConsoleCommand implements ConsoleCommand {
+    private CommandQueue queue;
+
+    /**
+     * Конструктор ExecuteConsoleCommand.
+     * @param queue Черга команд, в яку будуть додаватися завдання.
+     */
+    public ExecuteConsoleCommand(CommandQueue queue) {
+        this.queue = queue;
+    }
+
+    /**
+     * Повертає ключ команди для меню.
+     * @return Ключ команди "execute".
+     */
+    @Override
+    public String getKey() {
+        return "execute";
+    }
+
+    /**
+     * Повертає інформацію про команду для відображення в меню.
+     * @return Опис команди "Виконати обробку колекції в паралельних потоках (execute)".
+     */
+    @Override
+    public String getInfo() {
+        return "Виконати обробку колекції в паралельних потоках (execute)";
+    }
+
+    /**
+     * Виконує команду: створює колекцію чисел, додає команди обробки в чергу та очікує завершення обробки.
+     * @throws InterruptedException Виникає у разі помилок при виконанні команди.
+     */
+    @Override
+    public void execute() throws InterruptedException {
+        List<Integer> numbers = generateRandomNumbers(20); // Випадкова колекція чисел
+
+        CountDownLatch latch = new CountDownLatch(3);
+
+        MaxCommand<Integer> maxCommand = new MaxCommand<>(numbers, latch);
+        AvgCommand<Integer> avgCommand = new AvgCommand<>(numbers, latch);
+        MinMaxCommand<Integer> minMaxCommand = new MinMaxCommand<>(numbers, latch);
+
+        queue.put(maxCommand);
+        queue.put(avgCommand);
+        queue.put(minMaxCommand);
+
+        System.out.println("Основний потік: Додано команди до черги.");
+
+        latch.await();
+
+        System.out.println("\nРезультати обробки:");
+        System.out.println("MaxCommand Result: " + maxCommand.getResult());
+        System.out.println("AvgCommand Result: " + avgCommand.getResult());
+        System.out.println("MinMaxCommand Min Positive: " + minMaxCommand.getMinPositive() +
+                ", Max Negative: " + minMaxCommand.getMaxNegative());
+    }
+
+
+    /**
+     * Скасування команди не передбачено.
+     * Виводить повідомлення про відсутність скасування для даної команди.
+     * @throws Exception Виникає у разі помилок при скасуванні команди.
+     */
+    @Override
+    public void undo() throws Exception {
+        System.out.println("Скасування для команди 'execute' не передбачено.");
+    }
+
+    /**
+     * Генерує список випадкових цілих чисел.
+     * @param count Кількість чисел для генерації.
+     * @return Список випадкових цілих чисел.
+     */
+    private List<Integer> generateRandomNumbers(int count) {
+        List<Integer> numbers = new ArrayList<>();
+        Random random = new Random();
+        for (int i = 0; i < count; i++) {
+            numbers.add(random.nextInt(200) - 100); // Числа від -100 до 99
+        }
+        return numbers;
+    }
+}
+```
+
+`Main.java`
+
+```Java
+package ex05;
+
+/**
+ * Головний клас програми, що запускає консольний інтерфейс та паралельну обробку колекції.
+ */
+public class Main {
+
+    /**
+     * Головний метод програми.
+     * Створює чергу команд, меню та запускає діалоговий інтерфейс з користувачем.
+     * @param args Аргументи командного рядка (не використовуються).
+     */
+    public static void main(String[] args) {
+        CommandQueue queue = new CommandQueue();
+        Menu menu = new Menu();
+
+        try {
+            menu.runMenu(queue);
+        } catch (Exception e) {
+            System.err.println("Виникла помилка під час роботи програми: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            queue.stopQueue();
+            try {
+                queue.join();
+            } catch (InterruptedException e) {
+                System.err.println("Переривання під час очікування завершення Worker Thread: " + e.getMessage());
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+}
+```
+
+`MaxCommand.java`
+
+```Java
+package ex05;
+
+import java.util.Collection;
+import java.util.concurrent.CountDownLatch;
+
+/**
+ * Клас MaxCommand для знаходження максимального значення в колекції чисел.
+ */
+public class MaxCommand<T extends Number> extends AbstractCollectionCommand<T> {
+
+    private CountDownLatch latch;
+
+    /**
+     * Конструктор MaxCommand.
+     * @param collection Колекція чисел для обробки.
+     */
+    public MaxCommand(Collection<T> collection, CountDownLatch latch) {
+        super(collection);
+        this.latch = latch;
+    }
+
+    /**
+     * Знаходить максимальне значення в колекції.
+     * @throws InterruptedException якщо виконання команди перервано.
+     */
+    @Override
+    public void execute() throws InterruptedException {
+        if (collection == null || collection.isEmpty()) {
+            result = Double.NaN;
+            latch.countDown();
+            return;
+        }
+
+        double max = Double.NEGATIVE_INFINITY;
+        for (Number number : collection) {
+            if (number.doubleValue() > max) {
+                max = number.doubleValue();
+            }
+            Thread.sleep(50);
+        }
+        result = max;
+        System.out.println("MaxCommand: Максимальне значення знайдено = " + result +
+                " в потоці " + Thread.currentThread().getName());
+        latch.countDown();
+    }
+}
+```
+
+`Menu.java`
+
+```Java
+package ex05;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
+
+/**
+ * Клас Menu - контейнер для консольних команд.
+ * Відповідає за управління командами, їх реєстрацію та виконання через консольний інтерфейс.
+ */
+public class Menu {
+    private Map<String, ConsoleCommand> commands = new HashMap<>();
+
+    /**
+     * Додає команду до меню.
+     * @param command ConsoleCommand, яку потрібно додати до меню.
+     */
+    public void addCommand(ConsoleCommand command) {
+        commands.put(command.getKey(), command);
+    }
+
+    /**
+     * Видаляє команду з меню за її ключем.
+     * @param key Ключ команди, яку потрібно видалити.
+     */
+    public void removeCommand(String key) {
+        commands.remove(key);
+    }
+
+    /**
+     * Виконує команду за заданим ключем.
+     * @param commandKey Ключ команди, яку потрібно виконати.
+     * @throws Exception Виникає у разі помилок при виконанні команди.
+     */
+    public void executeCommand(String commandKey) throws Exception {
+        ConsoleCommand command = commands.get(commandKey);
+        if (command != null) {
+            command.execute();
+        } else {
+            System.out.println("Невідома команда.");
+        }
+    }
+
+    /**
+     * Виводить меню команд у консоль.
+     * Показує доступні команди та їх описи.
+     */
+    public void showMenu() {
+        System.out.println("\n=== Меню ===");
+        for (ConsoleCommand command : commands.values()) {
+            System.out.println(command.getKey() + " - " + command.getInfo());
+        }
+        System.out.println("exit - Вихід");
+        System.out.println("Введіть команду:");
+    }
+
+    /**
+     * Запускає діалоговий інтерфейс з користувачем, обробляючи введені команди.
+     * @param queue Черга команд для виконання.
+     * @throws Exception Виникає у разі помилок вводу/виводу або виконання команд.
+     */
+    public void runMenu(CommandQueue queue) throws Exception {
+        Scanner scanner = new Scanner(System.in);
+        String input;
+
+        addCommand(new ExecuteConsoleCommand(queue));
+
+        while (true) {
+            showMenu();
+            input = scanner.nextLine();
+
+            if (input.equalsIgnoreCase("exit")) {
+                System.out.println("Завершення програми.");
+                break;
+            } else {
+                try {
+                    executeCommand(input);
+                } catch (Exception e) {
+                    System.out.println("Помилка виконання команди: " + e.getMessage());
+                }
+            }
+        }
+        scanner.close();
+    }
+}
+```
+
+`MinMaxCommand.java`
+
+```Java
+package ex05;
+
+import java.util.Collection;
+import java.util.concurrent.CountDownLatch;
+
+/**
+ * Клас MinMaxCommand для пошуку мінімального позитивного та максимального негативного значень в колекції чисел.
+ */
+public class MinMaxCommand<T extends Number> extends AbstractCollectionCommand<T> {
+    private double minPositive;
+    private double maxNegative;
+    private CountDownLatch latch;
+
+    /**
+     * Конструктор MinMaxCommand.
+     * @param collection Колекція чисел для обробки.
+     */
+    public MinMaxCommand(Collection<T> collection, CountDownLatch latch) {
+        super(collection);
+        this.minPositive = Double.POSITIVE_INFINITY;
+        this.maxNegative = Double.NEGATIVE_INFINITY;
+        this.latch = latch;
+    }
+
+    public double getMinPositive() {
+        return minPositive;
+    }
+
+    public double getMaxNegative() {
+        return maxNegative;
+    }
+
+    /**
+     * Знаходить мінімальне позитивне та максимальне негативне значення в колекції.
+     * @throws InterruptedException якщо виконання команди перервано.
+     */
+    @Override
+    public void execute() throws InterruptedException {
+        if (collection == null || collection.isEmpty()) {
+            minPositive = Double.NaN;
+            maxNegative = Double.NaN;
+            latch.countDown();
+            return;
+        }
+
+        minPositive = Double.POSITIVE_INFINITY;
+        maxNegative = Double.NEGATIVE_INFINITY;
+
+        for (Number number : collection) {
+            double value = number.doubleValue();
+            if (value > 0 && value < minPositive) {
+                minPositive = value;
+            }
+            if (value < 0 && value > maxNegative) {
+                maxNegative = value;
+            }
+            Thread.sleep(50);
+        }
+
+        if (minPositive == Double.POSITIVE_INFINITY) {
+            minPositive = Double.NaN;
+        }
+        if (maxNegative == Double.NEGATIVE_INFINITY) {
+            maxNegative = Double.NaN;
+        }
+
+        System.out.println("MinMaxCommand: Мінімальне позитивне = " + minPositive +
+                ", Максимальне негативне = " + maxNegative +
+                " в потоці " + Thread.currentThread().getName());
+        result = minPositive;
+        latch.countDown();
+    }
+}
+```
+
+`Queue.java`
+
+```Java
+package ex05;
+
+/**
+ * Інтерфейс Queue для черги команд.
+ */
+public interface Queue {
+    /**
+     * Додає команду до черги.
+     * @param command Команда для додавання.
+     */
+    void put(Command command);
+
+    /**
+     * Отримує та видаляє команду з черги.
+     * @return Видалена команда.
+     * @throws InterruptedException якщо очікування команди перервано.
+     */
+    Command take() throws InterruptedException;
+}
+```
+
+`MainTest.java`
+
+```Java
+package ex05;
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+
+/**
+ * Клас MainTest для тестування функціональності класів CommandQueue, MaxCommand, AvgCommand, MinMaxCommand.
+ */
+public class MainTest {
+
+    @Test
+    public void testMaxCommand() throws InterruptedException {
+        List<Integer> numbers = Arrays.asList(1, 5, 2, 8, 3);
+        CountDownLatch latch = new CountDownLatch(1);
+        MaxCommand<Integer> maxCommand = new MaxCommand<>(numbers, latch);
+        maxCommand.execute();
+        latch.await();
+        assertEquals(8.0, maxCommand.getResult(), 0.001);
+    }
+
+    @Test
+    public void testAvgCommand() throws InterruptedException {
+        List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);
+        CountDownLatch latch = new CountDownLatch(1);
+        AvgCommand<Integer> avgCommand = new AvgCommand<>(numbers, latch);
+        avgCommand.execute();
+        latch.await();
+        assertEquals(3.0, avgCommand.getResult(), 0.001);
+    }
+
+    @Test
+    public void testMinMaxCommand() throws InterruptedException {
+        List<Integer> numbers = Arrays.asList(-5, 1, -2, 8, 3, -10);
+        CountDownLatch latch = new CountDownLatch(1);
+        MinMaxCommand<Integer> minMaxCommand = new MinMaxCommand<>(numbers, latch);
+        minMaxCommand.execute();
+        latch.await();
+        assertEquals(1.0, minMaxCommand.getMinPositive(), 0.001);
+        assertEquals(-2.0, minMaxCommand.getMaxNegative(), 0.001);
+    }
+
+    @Test
+    public void testMaxCommandQueue() throws InterruptedException {
+        CommandQueue queue = new CommandQueue();
+        List<Integer> numbers = Arrays.asList(1, 5, 2, 8, 3);
+        CountDownLatch latch = new CountDownLatch(1);
+        MaxCommand<Integer> maxCommand = new MaxCommand<>(numbers, latch);
+        queue.put(maxCommand);
+        latch.await();
+        queue.stopQueue();
+        queue.join();
+        assertEquals(8.0, maxCommand.getResult(), 0.001);
+    }
+
+    @Test
+    public void testAvgCommandQueue() throws InterruptedException {
+        CommandQueue queue = new CommandQueue();
+        List<Integer> numbers = Arrays.asList(2, 4, 6, 8, 10);
+        CountDownLatch latch = new CountDownLatch(1);
+        AvgCommand<Integer> avgCommand = new AvgCommand<>(numbers, latch);
+        queue.put(avgCommand);
+        latch.await();
+        queue.stopQueue();
+        queue.join();
+        assertEquals(6.0, avgCommand.getResult(), 0.001);
+    }
+
+    @Test
+    public void testMinMaxCommandQueue() throws InterruptedException {
+        CommandQueue queue = new CommandQueue();
+        List<Integer> numbers = Arrays.asList(-7, 2, -3, 9, 4, -12);
+        CountDownLatch latch = new CountDownLatch(1);
+        MinMaxCommand<Integer> minMaxCommand = new MinMaxCommand<>(numbers, latch);
+        queue.put(minMaxCommand);
+        latch.await();
+        queue.stopQueue();
+        queue.join();
+        assertEquals(2.0, minMaxCommand.getMinPositive(), 0.001);
+        assertEquals(-3.0, minMaxCommand.getMaxNegative(), 0.001);
+    }
+}
+```
+
+#### Пройдені тести:
+![](./Images/Task6_Test.png)
